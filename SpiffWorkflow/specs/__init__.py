@@ -1,11 +1,12 @@
 from AcquireMutex import AcquireMutex
+from Celery import Celery
 from Cancel import Cancel
 from CancelTask import CancelTask
 from Choose import Choose
 from ExclusiveChoice import ExclusiveChoice
 from Execute import Execute
 from Gate import Gate
-from Join import Join
+from Join import Join, Merge
 from MultiChoice import MultiChoice
 from MultiInstance import MultiInstance
 from ReleaseMutex import ReleaseMutex
