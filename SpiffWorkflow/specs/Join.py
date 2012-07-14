@@ -300,6 +300,7 @@ class Join(TaskSpec):
 
 class Merge(Join):
     """Same as Join, but merges all input attributes instead of just parents'
+
     Note: attributes that have conflicting names will be overwritten"""
     def _update_state(self, my_task):
         # Merge all inputs
@@ -307,9 +308,8 @@ class Merge(Join):
                 my_task.get_state_name()))
         for task in my_task.workflow.task_tree:
             if task.task_spec in self.inputs:
-                LOG.debug("Merging %s (%s) into %s: %s" % (task.get_name(),
-                        task.get_state_name(), my_task.get_name(),
-                        task.attributes))
+                LOG.debug("Merging %s (%s) into %s" % (task.get_name(),
+                        task.get_state_name(), my_task.get_name()))
                 my_task.set_attribute(**task.attributes)
         # Then execute default behavior
         return super(Merge, self)._update_state(my_task)
