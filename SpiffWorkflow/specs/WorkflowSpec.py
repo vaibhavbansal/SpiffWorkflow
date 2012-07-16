@@ -13,7 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+import logging
+
 from SpiffWorkflow.specs import StartTask
+
+LOG = logging.getLogger(__name__)
 
 
 class WorkflowSpec(object):
@@ -35,8 +39,8 @@ class WorkflowSpec(object):
         """
         Called by a task spec when it was added into the workflow.
         """
-        if task_spec in self.task_specs:
-            raise ValueError('duplicate model name: ' + repr(task_spec))
+        if task_spec.name in self.task_specs:
+            raise KeyError('Duplicate task spec name: ' + task_spec.name)
         self.task_specs[task_spec.name] = task_spec
         task_spec.id = len(self.task_specs)
 
@@ -50,6 +54,49 @@ class WorkflowSpec(object):
         @return: The task spec with the given name.
         """
         return self.task_specs[name]
+
+    def validate(self):
+        """Checks integrity of workflow and reports any problems with it.
+
+        Detects:
+        - loops (tasks that wait on each other in a loop)
+        :returns: empty list if valid, a list of errors if not
+        """
+        results = []
+        from SpiffWorkflow.specs import Join
+
+        def recursive_find_loop(task, history):
+            current = history[:]
+            current.append(task)
+            if isinstance(task, Join):
+                if task in history:
+                    msg = "Found loop with '%s': %s then '%s' again" % (
+                            task.name, '->'.join([p.name for p in history]),
+                            task.name)
+                    print msg
+                    raise Exception(msg)
+                for predecessor in task.inputs:
+                    recursive_find_loop(predecessor, current)
+
+            for parent in task.inputs:
+                recursive_find_loop(parent, current)
+
+        for task_id, task in self.task_specs.iteritems():
+            # Check for cyclic waits
+            try:
+                recursive_find_loop(task, [])
+            except Exception as exc:
+                results.append(exc.__str__())
+
+            # Check for disconnected tasks
+            if not task.inputs and task.name not in ['Start', 'Root']:
+                if task.outputs:
+                    results.append("Task '%s' is disconnected (no inputs)" %
+                        task.name)
+                else:
+                    LOG.debug("Task '%s' is not being used" % task.name)
+
+        return results
 
     def serialize(self, serializer, **kwargs):
         """

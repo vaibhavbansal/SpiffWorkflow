@@ -158,7 +158,7 @@ class TaskSpec(object):
         for key in kwargs:
             if key in self.defines:
                 msg = "Property %s can not be modified" % key
-                raise WorkflowException(msg)
+                raise WorkflowException(self, msg)
         self.properties.update(kwargs)
 
     def get_property(self, name, default=None):
@@ -183,6 +183,20 @@ class TaskSpec(object):
         """
         self.outputs.append(taskspec)
         taskspec._connect_notify(self)
+
+    def follow(self, taskspec):
+        """
+        Make this task follow the provided one. In other words, this task is
+        added to the given task outputs.
+
+        This is an alias to connect, just easier to understand when reading
+        code - ex: my_task.follow(the_other_task)
+        Adding it after being confused by .connect one times too many!
+
+        @type  taskspec: TaskSpec
+        @param taskspec: The task to follow.
+        """
+        taskspec.connect(self)
 
     def test(self):
         """
