@@ -13,6 +13,8 @@ class TaskSpecTest(unittest.TestCase):
     CORRELATE = TaskSpec
 
     def create_instance(self):
+        if 'testtask' in self.wf_spec.task_specs:
+            del self.wf_spec.task_specs['testtask']
         return TaskSpec(self.wf_spec, 'testtask', description='foo')
 
     def setUp(self):
@@ -40,10 +42,19 @@ class TaskSpecTest(unittest.TestCase):
 
     def testConnect(self):
         self.assertEqual(self.spec.outputs, [])
+        self.assertEqual(self.spec.inputs, [])
         spec = self.create_instance()
         self.spec.connect(spec)
         self.assertEqual(self.spec.outputs, [spec])
         self.assertEqual(spec.inputs, [self.spec])
+
+    def testFollow(self):
+        self.assertEqual(self.spec.outputs, [])
+        self.assertEqual(self.spec.inputs, [])
+        spec = self.create_instance()
+        self.spec.follow(spec)
+        self.assertEqual(spec.outputs, [self.spec])
+        self.assertEqual(self.spec.inputs, [spec])
 
     def testTest(self):
         # Should fail because the TaskSpec has no id yet.
@@ -63,7 +74,9 @@ class TaskSpecTest(unittest.TestCase):
         spec = self.create_instance()
         serialized = spec.serialize(serializer)
         self.assert_(isinstance(serialized, dict))
-        new_spec = spec.__class__.deserialize(serializer, self.wf_spec,
+
+        new_wf_spec = WorkflowSpec()
+        new_spec = spec.__class__.deserialize(serializer, new_wf_spec,
                 serialized)
         before = spec.serialize(serializer)
         after = new_spec.serialize(serializer)
