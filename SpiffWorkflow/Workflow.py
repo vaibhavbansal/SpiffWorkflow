@@ -59,7 +59,10 @@ class Workflow(object):
             assert 'Root' in workflow_spec.task_specs
             root = workflow_spec.task_specs['Root']  # Probably deserialized
         else:
-            root = specs.Simple(workflow_spec, 'Root')
+            if 'Root' in workflow_spec.task_specs:
+                root = workflow_spec.task_specs['Root']
+            else:
+                root = specs.Simple(workflow_spec, 'Root')
         self.task_tree = Task(self, root)
         self.success = True
         self.debug = False

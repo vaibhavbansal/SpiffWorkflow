@@ -12,6 +12,9 @@ class JoinTest(TaskSpecTest):
     CORRELATE = Join
 
     def create_instance(self):
+        if 'testtask' in self.wf_spec.task_specs:
+            del self.wf_spec.task_specs['testtask']
+
         return Join(self.wf_spec,
                        'testtask',
                        description='foo')
@@ -21,6 +24,9 @@ class MergeTest(TaskSpecTest):
     CORRELATE = Merge
 
     def create_instance(self):
+        if 'testtask' in self.wf_spec.task_specs:
+            del self.wf_spec.task_specs['testtask']
+
         return Merge(self.wf_spec,
                        'testtask',
                        description='foo')

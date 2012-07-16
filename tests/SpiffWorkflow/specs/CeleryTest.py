@@ -4,7 +4,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from TaskSpecTest import TaskSpecTest
-from SpiffWorkflow.specs import Celery
+from SpiffWorkflow.specs import Celery, WorkflowSpec
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -13,6 +13,8 @@ class CeleryTest(TaskSpecTest):
     CORRELATE = Celery
 
     def create_instance(self):
+        if 'testtask' in self.wf_spec.task_specs:
+            del self.wf_spec.task_specs['testtask']
         return Celery(self.wf_spec,
                        'testtask', 'call.name',
                        call_args=[Attrib('the_attribute'), 1],
@@ -28,27 +30,28 @@ class CeleryTest(TaskSpecTest):
         pass
 
     def testSerializationWithoutKwargs(self):
+        new_wf_spec = WorkflowSpec()
         serializer = DictionarySerializer()
-        nokw = Celery(self.wf_spec, 'testtask', 'call.name',
+        nokw = Celery(self.wf_spec, 'testnokw', 'call.name',
                 call_args=[Attrib('the_attribute'), 1])
         data = nokw.serialize(serializer)
-        nokw2 = Celery.deserialize(serializer, self.wf_spec, data)
+        nokw2 = Celery.deserialize(serializer, new_wf_spec, data)
         self.assertDictEqual(nokw.kwargs, nokw2.kwargs)
 
-        kw = Celery(self.wf_spec, 'testtask', 'call.name',
+        kw = Celery(self.wf_spec, 'testkw', 'call.name',
                 call_args=[Attrib('the_attribute'), 1],
                 some_arg={"key": "value"})
         data = kw.serialize(serializer)
-        kw2 = Celery.deserialize(serializer, self.wf_spec, data)
+        kw2 = Celery.deserialize(serializer, new_wf_spec, data)
         self.assertDictEqual(kw.kwargs, kw2.kwargs)
 
         # Has kwargs, but they belong to TaskSpec
-        kw_defined = Celery(self.wf_spec, 'testtask', 'call.name',
+        kw_defined = Celery(self.wf_spec, 'testkwdef', 'call.name',
                 call_args=[Attrib('the_attribute'), 1],
                 some_ref=Attrib('value'),
                 defines={"key": "value"})
         data = kw_defined.serialize(serializer)
-        kw_defined2 = Celery.deserialize(serializer, self.wf_spec, data)
+        kw_defined2 = Celery.deserialize(serializer, new_wf_spec, data)
         self.assertIsInstance(kw_defined2.kwargs['some_ref'], Attrib)
 
         # Comes from live data. Bug not identified, but there we are...
@@ -61,7 +64,7 @@ class CeleryTest(TaskSpecTest):
           u'result_key': None, u'defines': {u'R': u'1'},
           u'class': u'SpiffWorkflow.specs.Celery.Celery',
           u'name': u'RS1:1'}
-        Celery.deserialize(serializer, self.wf_spec, data)
+        Celery.deserialize(serializer, new_wf_spec, data)
 
 
 def suite():
