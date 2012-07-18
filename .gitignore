@@ -4,3 +4,6 @@ build
 *.egg-info
 handbook
 unit_test.cfg
+nosetests.xml
+.coverage
+tests/coverage.xml
