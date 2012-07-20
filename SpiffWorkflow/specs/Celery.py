@@ -112,6 +112,7 @@ class Celery(TaskSpec):
         self.kwargs = {key: kwargs[key] for key in kwargs if key not in \
                 ['properties', 'defines', 'pre_assign', 'post_assign', 'lock']}
         self.result_key = result_key
+        LOG.debug("Celery task '%s' created to call '%s'" % (name, call))
 
     def _send_call(self, my_task):
         """Sends Celery asynchronous call and stores async call information for
