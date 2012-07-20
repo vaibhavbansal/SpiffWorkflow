@@ -11,6 +11,8 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+import copy
+
 from SpiffWorkflow import Workflow
 from SpiffWorkflow.util.impl import get_class
 from SpiffWorkflow.Task import Task
@@ -25,7 +27,7 @@ class DictionarySerializer(Serializer):
         return thedict
 
     def _deserialize_dict(self, s_state):
-        return s_state
+        return copy.copy(s_state)
 
     def _serialize_dict_with_objects(self, thedict):
         """Detect any Attrib or Operator objects and call their serializers"""
@@ -47,7 +49,7 @@ class DictionarySerializer(Serializer):
         return theList
 
     def _deserialize_list(self, s_state):
-        return s_state
+        return copy.copy(s_state)
 
     def _serialize_list_with_objects(self, thelist):
         """Detect any Attrib or Operator objects and call their serializers"""
@@ -59,7 +61,7 @@ class DictionarySerializer(Serializer):
         return self._serialize_list(result)
 
     def _deserialize_list_with_objects(self, s_state):
-        thelist = self._deserialize_dict(s_state)
+        thelist = self._deserialize_list(s_state)
         if thelist:
             for index, value in enumerate(thelist):
                 thelist[index] = self._deserialize_arg(value)
@@ -158,8 +160,8 @@ class DictionarySerializer(Serializer):
         kwargs = self._serialize_dict_with_objects(spec.kwargs)
         s_state = self._serialize_task_spec(spec)
         s_state['call'] = spec.call
-        s_state['args'] = self._serialize_list_with_objects(args)
-        s_state['kwargs'] = self._serialize_dict_with_objects(kwargs)
+        s_state['args'] = args
+        s_state['kwargs'] = kwargs
         s_state['result_key'] = spec.result_key
         return s_state
 
