@@ -3,10 +3,10 @@ import sys
 import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from SpiffWorkflow.specs import WorkflowSpec
+from SpiffWorkflow.specs import WorkflowSpec, Simple, Join
 from SpiffWorkflow.exceptions import WorkflowException
 from SpiffWorkflow.specs.TaskSpec import TaskSpec
-from SpiffWorkflow.storage import DictionarySerializer, JSONSerializer
+from SpiffWorkflow.storage import DictionarySerializer
 
 
 class TaskSpecTest(unittest.TestCase):
@@ -82,6 +82,41 @@ class TaskSpecTest(unittest.TestCase):
         after = new_spec.serialize(serializer)
         self.assertEqual(before, after, 'Before:\n%s\nAfter:\n%s\n' % (before,
                 after))
+
+    def testAncestors(self):
+        T1 = Simple(self.wf_spec, 'T1')
+        T2A = Simple(self.wf_spec, 'T2A')
+        T2B = Simple(self.wf_spec, 'T2B')
+        M = Join(self.wf_spec, 'M')
+        T3 = Simple(self.wf_spec, 'T3')
+
+        T1.follow(self.wf_spec.start)
+        T2A.follow(T1)
+        T2B.follow(T1)
+        T2A.connect(M)
+        T2B.connect(M)
+        T3.follow(M)
+
+        self.assertEquals(T1.ancestors(), [self.wf_spec.start])
+        self.assertEquals(T2A.ancestors(), [T1, self.wf_spec.start])
+        self.assertEquals(T2B.ancestors(), [T1, self.wf_spec.start])
+        M_ancestors = M.ancestors()
+        self.assertIn(T1, M_ancestors)
+        self.assertIn(T2A, M_ancestors)
+        self.assertIn(T2B, M_ancestors)
+        self.assertIn(self.wf_spec.start, M_ancestors)
+        self.assertEqual(len(T3.ancestors()), 5)
+
+    def test_ancestors_cyclic(self):
+        T1 = Join(self.wf_spec, 'T1')
+        T2 = Simple(self.wf_spec, 'T2')
+
+        T1.follow(self.wf_spec.start)
+        T2.follow(T1)
+        T1.connect(T2)
+
+        self.assertEquals(T1.ancestors(), [self.wf_spec.start])
+        self.assertEquals(T2.ancestors(), [T1, self.wf_spec.start])
 
 
 def suite():

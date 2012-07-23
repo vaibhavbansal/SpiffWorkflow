@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 from SpiffWorkflow.specs import Join, WorkflowSpec
 
 
-class WorkflowSpecTransformTest(unittest.TestCase):
+class WorkflowSpecTest(unittest.TestCase):
     def setUp(self):
         self.wf_spec = WorkflowSpec()
 
@@ -31,6 +31,6 @@ class WorkflowSpecTransformTest(unittest.TestCase):
 
 def suite():
     return unittest.TestLoader().loadTestsFromTestCase(
-            WorkflowSpecTransformTest)
+            WorkflowSpecTest)
 if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite())
