@@ -302,17 +302,17 @@ class Merge(Join):
     """Same as Join, but merges all input attributes instead of just parents'
 
     Note: attributes that have conflicting names will be overwritten"""
-    def _update_state(self, my_task):
-        # Merge all inputs
-        LOG.debug("Merging into %s (%s)" % (my_task.get_name(),
-                my_task.get_state_name()))
-        for task in my_task.workflow.task_tree:
-            if task.task_spec in self.inputs:
+    def _do_join(self, my_task):
+        # Merge all inputs (in order)
+        for input_spec in self.inputs:
+            tasks = [task for task in my_task.workflow.task_tree
+                    if task.task_spec is input_spec]
+            for task in tasks:
                 LOG.debug("Merging %s (%s) into %s" % (task.get_name(),
-                        task.get_state_name(), my_task.get_name()))
+                        task.get_state_name(), self.name),
+                        extra=dict(data=task.attributes))
                 my_task.set_attribute(**task.attributes)
-        # Then execute default behavior
-        return super(Merge, self)._update_state(my_task)
+        return super(Merge, self)._do_join(my_task)
 
     @classmethod
     def deserialize(self, serializer, wf_spec, s_state):
