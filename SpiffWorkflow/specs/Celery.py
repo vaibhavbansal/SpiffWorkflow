@@ -18,7 +18,7 @@ import logging
 from SpiffWorkflow.Task import Task
 from SpiffWorkflow.exceptions import WorkflowException
 from SpiffWorkflow.specs.TaskSpec import TaskSpec
-from SpiffWorkflow.operators import valueof, Attrib
+from SpiffWorkflow.operators import valueof, Attrib, PathAttrib
 
 try:
     from celery.app import default_app
@@ -34,7 +34,7 @@ def eval_args(args, my_task):
     """Parses args and evaluates any Attrib entries"""
     results = []
     for arg in args:
-        if isinstance(arg, Attrib):
+        if isinstance(arg, Attrib) or isinstance(arg, PathAttrib):
             results.append(valueof(my_task, arg))
         else:
             results.append(arg)
@@ -45,7 +45,7 @@ def eval_kwargs(kwargs, my_task):
     """Parses kwargs and evaluates any Attrib entries"""
     results = {}
     for kwarg, value in kwargs.iteritems():
-        if isinstance(value, Attrib):
+        if isinstance(value, Attrib) or isinstance(value, PathAttrib):
             results[kwarg] = valueof(my_task, value)
         else:
             results[kwarg] = value
