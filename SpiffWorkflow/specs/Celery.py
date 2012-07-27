@@ -19,6 +19,7 @@ from SpiffWorkflow.Task import Task
 from SpiffWorkflow.exceptions import WorkflowException
 from SpiffWorkflow.specs.TaskSpec import TaskSpec
 from SpiffWorkflow.operators import valueof, Attrib, PathAttrib
+from SpiffWorkflow.util import merge_dictionary
 
 try:
     from celery.app import default_app
@@ -73,7 +74,7 @@ class Celery(TaskSpec):
     completion."""
 
     def __init__(self, parent, name, call, call_args=None, result_key=None,
-                 **kwargs):
+                 merge_results=False, **kwargs):
         """Constructor.
 
         The args/kwargs arguments support Attrib classes in the parameters for
@@ -99,6 +100,8 @@ class Celery(TaskSpec):
         @param result_key: The key to use to store the results of the call in
                 task.attributes. If None, then dicts are expanded into
                 attributes and values are stored in 'result'.
+        @param merge_results: merge the results in instead of overwriting existing
+                fields.
         @type  kwargs: dict
         @param kwargs: kwargs to pass to celery task.
         """
@@ -109,6 +112,7 @@ class Celery(TaskSpec):
         self.description = kwargs.pop('description', '')
         self.call = call
         self.args = call_args
+        self.merge_results = merge_results
         self.kwargs = {key: kwargs[key] for key in kwargs if key not in \
                 ['properties', 'defines', 'pre_assign', 'post_assign', 'lock']}
         self.result_key = result_key
@@ -213,13 +217,19 @@ class Celery(TaskSpec):
                 return False
             LOG.debug("Completed celery call %s with result=%s" % (self.call,
                     result))
+            # Format result
             if self.result_key:
-                my_task.set_attribute(**{self.result_key: result})
+                data = {self.result_key: result}
             else:
                 if isinstance(result, dict):
-                    my_task.set_attribute(**result)
+                    data = result
                 else:
-                    my_task.set_attribute(**{'result': result})
+                    data = {'result': result}
+            # Load formatted result into attributes
+            if self.merge_results:
+                merge_dictionary(my_task.attributes, data)
+            else:
+                my_task.set_attribute(**data)
             return True
         else:
             LOG.debug("async_call.ready()=%s. TryFire for '%s' "
