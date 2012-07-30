@@ -312,16 +312,21 @@ class Merge(Join):
                 LOG.debug("Merging %s (%s) into %s" % (task.get_name(),
                         task.get_state_name(), self.name),
                         extra=dict(data=task.attributes))
-                # Log when we overwrite
-                for k, v in task.attributes.iteritems():
-                    if k in my_task.attributes:
-                        if v != my_task.attributes[k]:
-                            LOG.warning("Overwriting %s with %s" % (
-                                    my_task.attributes[k], v))
-
+                log_overwrites(my_task.attributes, task.attributes)
                 merge_dictionary(my_task.attributes, task.attributes)
         return super(Merge, self)._do_join(my_task)
 
     @classmethod
     def deserialize(self, serializer, wf_spec, s_state):
         return serializer._deserialize_merge(wf_spec, s_state)
+
+
+def log_overwrites(dst, src):
+    # Temporary: We log when we overwrite during debugging
+    for k, v in src.iteritems():
+        if k in dst:
+            if isinstance(v, dict) and isinstance(dst[k], dict):
+                log_overwrites(v, dst[k])
+            else:
+                if v != dst[k]:
+                    LOG.warning("Overwriting %s=%s with %s" % (k, dst[k], v))
