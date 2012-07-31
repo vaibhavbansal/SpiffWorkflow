@@ -16,6 +16,7 @@
 import logging
 
 from SpiffWorkflow.specs.TaskSpec import TaskSpec
+from SpiffWorkflow.util import merge_dictionary  # make available to callers
 
 LOG = logging.getLogger(__name__)
 
