@@ -197,18 +197,18 @@ class Celery(TaskSpec):
             my_task.async_call.state  # must manually refresh if deserialized
         if my_task.async_call.state == 'FAILURE':
             LOG.debug("Async Call for task '%s' failed: %s" % (
-                    my_task.get_name(), my_task.async_call.info))
-            info = {}
-            info['traceback'] = my_task.async_call.traceback
-            info['info'] = Serializable(my_task.async_call.info)
-            info['state'] = my_task.async_call.state
-            my_task._set_internal_attribute(task_state=info)
+                    my_task.get_name(), my_task.async_call.result))
+            data = {}
+            data['traceback'] = my_task.async_call.traceback
+            data['info'] = Serializable(my_task.async_call.result)
+            data['state'] = my_task.async_call.state
+            my_task._set_internal_attribute(task_state=data)
         elif my_task.async_call.state == 'RETRY':
-            info = {}
-            info['traceback'] = my_task.async_call.traceback
-            info['info'] = Serializable(my_task.async_call.info)
-            info['state'] = my_task.async_call.state
-            my_task._set_internal_attribute(task_state=info)
+            data = {}
+            data['traceback'] = my_task.async_call.traceback
+            data['info'] = Serializable(my_task.async_call.result)
+            data['state'] = my_task.async_call.state
+            my_task._set_internal_attribute(task_state=data)
         elif my_task.async_call.ready():
             result = my_task.async_call.result
             if isinstance(result, Exception):
