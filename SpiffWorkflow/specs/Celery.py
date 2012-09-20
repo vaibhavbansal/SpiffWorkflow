@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+import json
 import logging
 
 from SpiffWorkflow.Task import Task
@@ -23,7 +24,6 @@ from SpiffWorkflow.util import merge_dictionary
 
 try:
     from celery.app import default_app
-    from celery.result import AsyncResult
 except ImportError:
     print "Unable to import python-celery imports. These are only needed if"\
             " the celery task spec is used"
@@ -65,12 +65,12 @@ def Serializable(o):
             s = json.dumps(o)
             return o
         except:
-            LOG.debug("Got a non-serilizeable object: %s" % o)
+            LOG.debug("Got a non-serializeable object of type '%s'" % type(o))
             return o.__repr__()
 
 
 class Celery(TaskSpec):
-    """This class implements a celeryd task that is sent to the celery queue for
+    """This class implements a celery task that is sent to the celery queue for
     completion."""
 
     def __init__(self, parent, name, call, call_args=None, result_key=None,
@@ -158,8 +158,8 @@ class Celery(TaskSpec):
     def retry_fire(self, my_task):
         """ Abort celery task and retry it"""
         if not my_task._has_state(Task.WAITING):
-            raise WorkflowException(my_task, "Cannot refire a task that is not"
-                    "in WAITING state")
+            raise WorkflowException(my_task, "Cannot refire a task that is "
+                    "not in WAITING state")
         # Check state of existing call and abort it (save history)
         if my_task._get_internal_attribute('task_id') is not None:
             if not hasattr(my_task, 'async_call'):
