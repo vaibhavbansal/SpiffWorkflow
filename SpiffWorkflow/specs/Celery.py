@@ -128,7 +128,29 @@ class Celery(TaskSpec):
             kwargs = eval_kwargs(self.kwargs, my_task)
         LOG.debug("%s (task id %s) calling %s" % (self.name, my_task.id,
                 self.call), extra=dict(data=dict(args=args, kwargs=kwargs)))
-        async_call = default_app.send_task(self.call, args=args, kwargs=kwargs)
+        if default_app.conf.get("CELERY_ALWAYS_EAGER", False) is True:
+            LOG.debug("Making synchronous call to '%s'" % self.call)
+            if args is None:
+                args = []
+            if kwargs is None:
+                kwargs = {}
+            # Load the celery task
+            mod = __import__(self.call.split('.')[0])
+            components = self.call.split('.')
+            for comp in components[1:-1]:
+                mod = getattr(mod, comp)
+            #  Call it - This should return an EagerResult
+            async_call = mod.__builtins__['getattr'](mod, components[-1]
+                                                     ).delay(*args, **kwargs)
+            if async_call.state == 'FAILURE':
+                #Get the exception from the traceback
+                err_string = async_call.traceback.split("\n")[-2]
+                # Store it in the reult to be processed later
+                async_call._result = Exception(err_string)
+                LOG.error(err_string)
+        else:
+            async_call = default_app.send_task(self.call, args=args,
+                                               kwargs=kwargs)
         my_task._set_internal_attribute(task_id=async_call.task_id)
         my_task.async_call = async_call
         LOG.debug("'%s' called: %s" % (self.call, my_task.async_call.task_id))
