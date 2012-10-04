@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+import copy
 import json
 import logging
 
@@ -30,6 +31,18 @@ except ImportError:
 
 LOG = logging.getLogger(__name__)
 
+
+class SpiffWorkflowCeleryException(Exception):
+    """Serializeable exception for Celery"""
+    def __init__(self, message):
+        Exception.__init__(self)
+        self.message = message
+
+    def __repr__(self):
+        return "<SpiffWorkflowCeleryException('%s')>" % self.message
+
+    def __str__(self):
+        return self.message
 
 def eval_args(args, my_task):
     """Parses args and evaluates any Attrib entries"""
@@ -142,18 +155,27 @@ class Celery(TaskSpec):
             #  Call it - This should return an EagerResult
             async_call = mod.__builtins__['getattr'](mod, components[-1]
                                                      ).delay(*args, **kwargs)
+            LOG.debug("Call state is %s" % async_call.state, extra=dict(data=async_call.__dict__))
+            task_data = copy.copy(async_call.__dict__)
+            # Make the result respond like an AsyncResult (with an Exception)
             if async_call.state == 'FAILURE':
-                #Get the exception from the traceback
-                err_string = async_call.traceback.split("\n")[-2]
-                # Store it in the reult to be processed later
-                async_call._result = Exception(err_string)
-                LOG.error(err_string)
+                if isinstance(async_call.result, Exception):
+                    # Remove it from task_data or it will break serialization
+                    del task_data['_result']
+                else:
+                    #Get the exception from the traceback if not supplied
+                    err_string = async_call.traceback.split("\n")[-2]
+                    # Store it in the result to be processed later
+                    async_call._result = SpiffWorkflowCeleryException(
+                            err_string)
+            # Persist the EagerResult in the task as celery does not keep it
+            my_task._set_internal_attribute(eager_task_data=task_data)
         else:
             async_call = default_app.send_task(self.call, args=args,
                                                kwargs=kwargs)
+            LOG.debug("'%s' called: %s" % (self.call, async_call.task_id))
         my_task._set_internal_attribute(task_id=async_call.task_id)
         my_task.async_call = async_call
-        LOG.debug("'%s' called: %s" % (self.call, my_task.async_call.task_id))
 
     def retry_fire(self, my_task):
         """ Abort celery task and retry it"""
@@ -192,6 +214,8 @@ class Celery(TaskSpec):
             my_task._set_internal_attribute(task_history=history)
         if 'task_state' in my_task.internal_attributes:
             del my_task.internal_attributes['task_state']
+        if 'eager_task_state' in my_task.internal_attributes:
+            del my_task.internal_attributes['eager_task_state']
         if 'error' in my_task.attributes:
             del my_task.attributes['error']
         if hasattr(my_task, 'async_call'):
@@ -206,7 +230,19 @@ class Celery(TaskSpec):
         if not hasattr(my_task, 'async_call') and \
                 my_task._get_internal_attribute('task_id') is not None:
             task_id = my_task._get_internal_attribute('task_id')
-            my_task.async_call = default_app.AsyncResult(task_id)
+            if 'eager_task_state' in my_task.internal_attributes:
+                async_call = default_app.EagerResult(task_id)
+                async_call.__dict__ = copy.copy(
+                        my_task._get_internal_attribute('eager_task_data'))
+                if async_call.state == 'FAILURE':
+                    #Get the exception from the traceback
+                    err_string = async_call.traceback.split("\n")[-2]
+                    # Store it in the reult to be processed later
+                    async_call._result = SpiffWorkflowCeleryException(
+                        err_string)
+                my_task.async_call = async_call
+            else:
+                my_task.async_call = default_app.AsyncResult(task_id)
             my_task.deserialized = True
             LOG.debug("Reanimate AsyncCall %s" % task_id)
 
@@ -225,6 +261,7 @@ class Celery(TaskSpec):
             data['info'] = Serializable(my_task.async_call.result)
             data['state'] = my_task.async_call.state
             my_task._set_internal_attribute(task_state=data)
+            return False
         elif my_task.async_call.state == 'RETRY':
             data = {}
             data['traceback'] = my_task.async_call.traceback
