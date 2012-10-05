@@ -214,8 +214,8 @@ class Celery(TaskSpec):
             my_task._set_internal_attribute(task_history=history)
         if 'task_state' in my_task.internal_attributes:
             del my_task.internal_attributes['task_state']
-        if 'eager_task_state' in my_task.internal_attributes:
-            del my_task.internal_attributes['eager_task_state']
+        if 'eager_task_data' in my_task.internal_attributes:
+            del my_task.internal_attributes['eager_task_data']
         if 'error' in my_task.attributes:
             del my_task.attributes['error']
         if hasattr(my_task, 'async_call'):
@@ -230,7 +230,7 @@ class Celery(TaskSpec):
         if not hasattr(my_task, 'async_call') and \
                 my_task._get_internal_attribute('task_id') is not None:
             task_id = my_task._get_internal_attribute('task_id')
-            if 'eager_task_state' in my_task.internal_attributes:
+            if 'eager_task_data' in my_task.internal_attributes:
                 async_call = default_app.EagerResult(task_id)
                 async_call.__dict__ = copy.copy(
                         my_task._get_internal_attribute('eager_task_data'))
