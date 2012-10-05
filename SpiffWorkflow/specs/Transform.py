@@ -16,6 +16,7 @@
 import logging
 
 from SpiffWorkflow.specs.TaskSpec import TaskSpec
+from SpiffWorkflow.Task import Task
 from SpiffWorkflow.util import merge_dictionary  # make available to callers
 
 LOG = logging.getLogger(__name__)
@@ -49,10 +50,29 @@ class Transform(TaskSpec):
         self.transforms = transforms
 
     def _update_state_hook(self, my_task):
+        """Runs the transform code and evaluates it's response to determine
+        next steps.
+
+        If transform code returns False, we wait.
+        If an error occurs, we halt.
+        Otherwise we succeed.
+        """
         if self.transforms:
+            wait = False
             for transform in self.transforms:
                 LOG.debug("Executing transform", extra=dict(data=transform))
-                exec(transform)
+                result = None
+                tabbed_code = '\n    '.join(transform.split('\n'))
+                exec("def my_transform(self, my_task):\n    %s"
+                     "\nresult = my_transform(self, my_task)"
+                     "\ndel my_transform" %
+                     tabbed_code)
+                if result is False:
+                    wait = True
+            if wait:
+                LOG.debug("'%s' going to WAITING state" % my_task.get_name())
+                my_task.state = Task.WAITING
+                return False  # Wait
         result = super(Transform, self)._update_state_hook(my_task)
         return result
 

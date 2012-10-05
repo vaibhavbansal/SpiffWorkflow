@@ -67,7 +67,7 @@ def track_workflow(wf_spec, taken_path = None):
         track_task(wf_spec.task_specs[name], taken_path)
     return taken_path
 
-def run_workflow(test, wf_spec, expected_path, expected_data):
+def run_workflow(test, wf_spec, expected_path, expected_data, max_tries=1):
     # Execute all tasks within the Workflow.
     taken_path = track_workflow(wf_spec)
     workflow   = Workflow(wf_spec)
@@ -85,7 +85,11 @@ def run_workflow(test, wf_spec, expected_path, expected_data):
         raise
 
     #workflow.task_tree.dump()
-    test.assert_(workflow.is_completed(),
+    complete = False
+    while max_tries > 0 and complete is False:
+        max_tries -= 1
+        complete = workflow.is_completed()
+    test.assert_(complete,
                  'complete_all() returned, but workflow is not complete\n'
                + workflow.task_tree.get_dump())
 
