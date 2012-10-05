@@ -44,6 +44,29 @@ class TransformTest(TaskSpecTest):
         self.assertEqual(last.attributes.get('foo'), 2)
         self.assertEqual(last.attributes.get('copy'), 2)
 
+    def testWaitOnTransform(self):
+        """
+        Tests that we can make the transform wait and then continue.
+        """
+        task1 = Transform(self.wf_spec, 'First', transforms=[
+            "my_task.set_attribute(foo=1)"])
+        self.wf_spec.start.connect(task1)
+        task2 = Transform(self.wf_spec, 'Second', transforms=[
+            "self.bar = getattr(self, 'bar', 0) + 1",
+            "my_task.set_attribute(foo=self.bar)",
+            "return self.bar == 4",
+            ])
+        task1.connect(task2)
+        task3 = Simple(self.wf_spec, 'Last')
+        task2.connect(task3)
+
+        expected = 'Start\n  First\n    Second\n      Last\n'
+        workflow = run_workflow(self, self.wf_spec, expected, '', max_tries=3)
+        first = workflow.get_task(3)
+        last = workflow.get_task(5)
+        self.assertEqual(first.attributes.get('foo'), 1)
+        self.assertEqual(last.attributes.get('foo'), 4)
+
 
 def suite():
     return unittest.TestLoader().loadTestsFromTestCase(TransformTest)

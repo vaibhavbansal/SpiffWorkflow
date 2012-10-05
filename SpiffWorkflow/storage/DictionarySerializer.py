@@ -174,6 +174,7 @@ class DictionarySerializer(Serializer):
         s_state['args'] = args
         s_state['kwargs'] = kwargs
         s_state['result_key'] = spec.result_key
+        s_state['merge_results'] = spec.merge_results
         return s_state
 
     def _deserialize_celery(self, wf_spec, s_state):
@@ -182,6 +183,7 @@ class DictionarySerializer(Serializer):
         spec = Celery(wf_spec, s_state['name'], s_state['call'],
                       call_args=args,
                       result_key=s_state['result_key'],
+                      merge_results=s_state.get('merge_results', False),
                       **kwargs)
         self._deserialize_task_spec(wf_spec, s_state, spec=spec)
         return spec
