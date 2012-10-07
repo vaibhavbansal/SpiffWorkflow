@@ -252,7 +252,21 @@ class DictionarySerializer(Serializer):
         return spec
 
     def _deserialize_merge(self, wf_spec, s_state):
-        spec = Merge(wf_spec, s_state['name'], s_state['split_task'])
+        spec = Merge(wf_spec,
+                    s_state['name'],
+                    split_task=s_state['split_task'],
+                    threshold=self._deserialize_arg(s_state['threshold']),
+                    cancel=s_state['cancel_remaining'])
+        self._deserialize_task_spec(wf_spec, s_state, spec=spec)
+        return spec
+
+    def _deserialize_transmerge(self, wf_spec, s_state):
+        spec = TransMerge(wf_spec,
+                    s_state['name'],
+                    split_task=s_state['split_task'],
+                    threshold=self._deserialize_arg(s_state['threshold']),
+                    cancel=s_state['cancel_remaining'],
+                    transforms=s_state['transforms'])
         self._deserialize_task_spec(wf_spec, s_state, spec=spec)
         return spec
 
