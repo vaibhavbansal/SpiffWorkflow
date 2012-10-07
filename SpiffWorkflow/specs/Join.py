@@ -321,6 +321,77 @@ class Merge(Join):
         return serializer._deserialize_merge(wf_spec, s_state)
 
 
+class TransMerge(Merge):
+    """
+    This class implements a task that combines merge and transform.
+
+    This task executes a script to evaluate whether the join is ready to
+    complete, and if the script returns False, the join waits. By writing a
+    script that collects the state from all branches in the spec, one can write
+    a task that waits on a specific set of data and allows the workflow to
+    complete when that data is received. Example is in the task tests. See
+    testWaitOnInputs.
+    """
+
+    def __init__(self, parent, name, transforms=None, **kwargs):
+        """
+        Constructor.
+
+        @type  parent: TaskSpec
+        @param parent: A reference to the parent task spec.
+        @type  name: str
+        @param name: The name of the task spec.
+        @type  transforms: list
+        @param transforms: The commands that this task will execute to
+                        transform data. The commands will be executed using the
+                        python 'exec' function. Accessing inputs and outputs is
+                        achieved by referencing the my_task.* and self.*
+                        variables'
+        @type  kwargs: dict
+        @param kwargs: See L{SpiffWorkflow.specs.TaskSpec}.
+        """
+        assert parent  is not None
+        assert name    is not None
+        Merge.__init__(self, parent, name, **kwargs)
+        self.transforms = transforms
+
+    def _update_state_hook(self, my_task):
+        """Runs the transform code and evaluates it's response to determine
+        next steps.
+
+        If transform code returns False, we wait.
+        If an error occurs, we halt.
+        Otherwise we succeed.
+        """
+        if self.transforms:
+            wait = False
+            for transform in self.transforms:
+                LOG.debug("Executing transform", extra=dict(data=transform))
+                result = None
+                tabbed_code = '\n    '.join(transform.split('\n'))
+                exec("def my_transform(self, my_task):\n    %s"
+                     "\nresult = my_transform(self, my_task)"
+                     "\ndel my_transform" %
+                     tabbed_code)
+                if result is False:
+                    wait = True
+            if wait:
+                LOG.debug("'%s' going to WAITING state" % my_task.get_name())
+                my_task.state = Task.WAITING
+                return False  # Wait
+        result = Merge._update_state_hook(self, my_task)
+        return result
+
+    def serialize(self, serializer):
+        s_state = serializer._serialize_join(self)
+        s_state['transforms'] = self.transforms
+        return s_state
+
+    @classmethod
+    def deserialize(self, serializer, wf_spec, s_state):
+        return serializer._deserialize_transmerge(wf_spec, s_state)
+
+
 def log_overwrites(dst, src):
     # Temporary: We log when we overwrite during debugging
     for k, v in src.iteritems():
