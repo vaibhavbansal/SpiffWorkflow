@@ -304,6 +304,7 @@ class Merge(Join):
 
     Note: attributes that have conflicting names will be overwritten"""
     def _do_join(self, my_task):
+        extend_lists = self.get_property("extend_lists", False)
         # Merge all inputs (in order)
         for input_spec in self.inputs:
             tasks = [task for task in my_task.workflow.task_tree
@@ -313,7 +314,7 @@ class Merge(Join):
                         task.get_state_name(), self.name),
                         extra=dict(data=task.attributes))
                 log_overwrites(my_task.attributes, task.attributes)
-                merge_dictionary(my_task.attributes, task.attributes)
+                merge_dictionary(my_task.attributes, task.attributes, extend_lists)
         return super(Merge, self)._do_join(my_task)
 
     @classmethod
@@ -398,6 +399,6 @@ def log_overwrites(dst, src):
         if k in dst:
             if isinstance(v, dict) and isinstance(dst[k], dict):
                 log_overwrites(v, dst[k])
-            else:
+            elif not hasattr(v, 'extend'):
                 if v != dst[k]:
                     LOG.warning("Overwriting %s=%s with %s" % (k, dst[k], v))
