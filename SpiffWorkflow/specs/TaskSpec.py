@@ -194,8 +194,13 @@ class TaskSpec(object):
         @type  taskspec: TaskSpec
         @param taskspec: The new output task.
         """
-        self.outputs.append(taskspec)
-        taskspec._connect_notify(self)
+        if taskspec not in self.outputs:
+            self.outputs.append(taskspec)
+            taskspec._connect_notify(self)
+        else:
+            LOG.debug("Attempt to insert '%s' as an output to '%s' when it "
+                      "already exists. Ignorning request" % (taskspec.name,
+                                                             self.name))
 
     def follow(self, taskspec):
         """

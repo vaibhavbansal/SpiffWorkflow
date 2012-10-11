@@ -14,6 +14,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 import logging
+import uuid
 
 from SpiffWorkflow.Task import Task
 from SpiffWorkflow.exceptions import WorkflowException
@@ -369,10 +370,11 @@ class TransMerge(Merge):
                 LOG.debug("Executing transform", extra=dict(data=transform))
                 result = None
                 tabbed_code = '\n    '.join(transform.split('\n'))
-                exec("def my_transform(self, my_task):\n    %s"
-                     "\nresult = my_transform(self, my_task)"
-                     "\ndel my_transform" %
-                     tabbed_code)
+                func_name = "trans_%s" % uuid.uuid4().hex[0:8]
+                exec("def %s(self, my_task):\n    %s"
+                     "\nresult = %s(self, my_task)"
+                     "\ndel %s" %
+                     (func_name, tabbed_code, func_name, func_name))
                 if result is False:
                     wait = True
             if wait:
