@@ -480,7 +480,9 @@ class DictionarySerializer(Serializer):
         return workflow
 
     def _serialize_task(self, task, skip_children=False):
-        assert isinstance(task, Task)
+        assert isinstance(task, Task), ("The task parameter did not receive a "
+                                        "Task object. Instead, it got a '%s'" %
+                                        task.__class__)
         s_state = dict()
 
         # id
@@ -514,7 +516,11 @@ class DictionarySerializer(Serializer):
         return s_state
 
     def _deserialize_task(self, workflow, s_state):
-        assert isinstance(workflow, Workflow)
+        assert isinstance(workflow, Workflow), ("The workflow parameter did "
+                                                "not receive a Workflow "
+                                                "object. Instead, it got a "
+                                                "'%s'" %
+                                                workflow.__class__)
         # task_spec
         task_spec = workflow.get_task_spec_from_name(s_state['task_spec'])
         if task_spec.name == "Root":  # Don't create two roots
@@ -531,7 +537,8 @@ class DictionarySerializer(Serializer):
         # find their parent (Task.Iter uses children to traverse the hierarchy
         if task.parent and task not in task.parent.children:
             task.parent.children.append(task)
-        assert task.parent is not None or task.get_name() == 'Root'
+        #assert task.parent is not None or task.get_name() == 'Root', ("Task "
+        #    "'%s' parent is None" % task.get_name())
 
         # children
         for c in s_state['children']:
