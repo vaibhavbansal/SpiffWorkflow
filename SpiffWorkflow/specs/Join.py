@@ -385,6 +385,20 @@ class TransMerge(Merge):
         result = Merge._update_state_hook(self, my_task)
         return result
 
+    def _do_join(self, my_task):
+        tasks = [task for task in my_task.workflow.get_tasks()
+                 if task.task_spec is self]
+
+        extend_lists = self.get_property("extend_lists", False)
+        # Merge all tasks
+        for task in tasks:
+            LOG.debug("Merging %s (%s) into %s" % (task.parent.get_name(),
+                    task.parent.get_state_name(), self.name),
+                    extra=dict(data=task.attributes))
+            log_overwrites(my_task.attributes, task.attributes)
+            merge_dictionary(my_task.attributes, task.attributes, extend_lists)
+        return super(Merge, self)._do_join(my_task)
+
     def serialize(self, serializer):
         s_state = serializer._serialize_join(self)
         s_state['transforms'] = self.transforms
