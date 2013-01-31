@@ -14,6 +14,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 import logging
+import sys
+import traceback
 import uuid
 
 from SpiffWorkflow.Task import Task
@@ -372,10 +374,15 @@ class TransMerge(Merge):
                 result = None
                 tabbed_code = '\n    '.join(transform.split('\n'))
                 func_name = "trans_%s" % uuid.uuid4().hex[0:8]
-                exec("def %s(self, my_task):\n    %s"
-                     "\nresult = %s(self, my_task)"
-                     "\ndel %s" %
-                     (func_name, tabbed_code, func_name, func_name))
+                try:
+                    exec("def %s(self, my_task):\n    %s"
+                         "\nresult = %s(self, my_task)" %
+                         (func_name, tabbed_code, func_name))
+                except StandardError as exc:
+                    raise exc
+                finally:
+                    exec("if hasattr(self, '%s'):\n  del %s" %
+                         (func_name, func_name))
                 if result is False:
                     wait = True
             if wait:
