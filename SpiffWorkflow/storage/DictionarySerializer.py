@@ -270,6 +270,16 @@ class DictionarySerializer(Serializer):
         self._deserialize_task_spec(wf_spec, s_state, spec=spec)
         return spec
 
+    def _deserialize_safetransmerge(self, wf_spec, s_state):
+        spec = SafeTransMerge(wf_spec,
+                    s_state['name'],
+                    split_task=s_state['split_task'],
+                    threshold=self._deserialize_arg(s_state['threshold']),
+                    cancel=s_state['cancel_remaining'],
+                    function_name=s_state['function_name'])
+        self._deserialize_task_spec(wf_spec, s_state, spec=spec)
+        return spec
+
     def _serialize_multi_choice(self, spec):
         s_state = self._serialize_task_spec(spec)
         s_state['cond_task_specs'] = thestate = []

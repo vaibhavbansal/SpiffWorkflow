@@ -14,8 +14,6 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 import logging
-import sys
-import traceback
 import uuid
 
 from SpiffWorkflow.Task import Task
@@ -23,6 +21,7 @@ from SpiffWorkflow.exceptions import WorkflowException
 from SpiffWorkflow.specs.TaskSpec import TaskSpec
 from SpiffWorkflow.operators import valueof
 from SpiffWorkflow.util import merge_dictionary
+from SpiffWorkflow.util.dynamic_import import import_static_method
 
 LOG = logging.getLogger(__name__)
 
@@ -414,6 +413,86 @@ class TransMerge(Merge):
     @classmethod
     def deserialize(self, serializer, wf_spec, s_state):
         return serializer._deserialize_transmerge(wf_spec, s_state)
+
+
+class SafeTransMerge(Merge):
+    """
+    This class implements a task that combines merge and transform.
+
+    This task executes a user specified function to evaluate whether the
+    join is ready to complete, and if the function returns False, the join
+    waits. By writing a function that collects the state from all branches in
+    the spec, one can write a task that waits on a specific set of data and
+    allows the workflow to complete when that data is received.
+    Example is in the task tests.
+    """
+
+    def __init__(self, parent, name, function_name=None, **kwargs):
+        """
+        Constructor.
+
+        @type  parent: TaskSpec
+        @param parent: A reference to the parent task spec.
+        @type  name: str
+        @param name: The name of the task spec.
+        @type  function_name: str
+        @param function_name: Fully qualified name of the function that this
+                        task will execute to transform data.
+        @type  kwargs: dict
+        @param kwargs: See L{SpiffWorkflow.specs.TaskSpec}.
+        """
+        assert parent  is not None
+        assert name    is not None
+        Merge.__init__(self, parent, name, **kwargs)
+        self.function_name = function_name
+
+    def _update_state_hook(self, my_task):
+        """Executes the function and evaluates it's response to determine
+        next steps.
+
+        If transform code returns False, we wait.
+        If an error occurs, we halt.
+        Otherwise we succeed.
+        """
+        if self.function_name:
+            wait = False
+            LOG.debug("Executing function %s", self.function_name)
+            try:
+                function = import_static_method(self.function_name)
+                result = function(self, my_task)
+            except StandardError as exc:
+                raise exc
+            if result is False:
+                wait = True
+            if wait:
+                LOG.debug("'%s' going to WAITING state" % my_task.get_name())
+                my_task.state = Task.WAITING
+                return False  # Wait
+        result = Merge._update_state_hook(self, my_task)
+        return result
+
+    def _do_join(self, my_task):
+        tasks = [task for task in my_task.workflow.get_tasks()
+                 if task.task_spec is self]
+
+        extend_lists = self.get_property("extend_lists", False)
+        # Merge all tasks
+        for task in tasks:
+            LOG.debug("Merging %s (%s) into %s" % (task.parent.get_name(),
+                    task.parent.get_state_name(), self.name),
+                    extra=dict(data=task.attributes))
+            log_overwrites(my_task.attributes, task.attributes)
+            merge_dictionary(my_task.attributes, task.attributes, extend_lists)
+        return super(Merge, self)._do_join(my_task)
+
+    def serialize(self, serializer):
+        s_state = serializer._serialize_join(self)
+        s_state['function_name'] = self.function_name
+        return s_state
+
+    @classmethod
+    def deserialize(self, serializer, wf_spec, s_state):
+        return serializer._deserialize_safetransmerge(wf_spec, s_state)
 
 
 def log_overwrites(dst, src):
